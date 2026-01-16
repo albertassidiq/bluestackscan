@@ -183,10 +183,11 @@ flowchart TD
 
 | Versi | Tanggal | Perubahan |
 |-------|---------|-----------|
-| v7.2 | 2026-01 | Logika bottom lebih baik, deteksi Tandai cerdas pada kartu terbuka |
-| v7.1 | 2026-01 | Tambah deteksi stuck, swipe lebih kuat |
-| v7.0 | 2026-01 | Penulisan ulang lengkap dengan deteksi OCR |
-| v6.0 | 2025-12 | Rilis awal dengan otomasi berbasis koordinat |
+| 0.73 | 2026-01 | Deteksi Tandai cerdas pada kartu terbuka, README profesional |
+| 0.72 | 2026-01 | Logika bottom lebih baik, scroll 178px |
+| 0.71 | 2026-01 | Tambah deteksi stuck, swipe lebih kuat |
+| 0.70 | 2026-01 | Penulisan ulang lengkap dengan deteksi OCR |
+| 0.60 | 2025-12 | Rilis awal dengan otomasi berbasis koordinat |
 
 ---
 
