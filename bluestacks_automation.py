@@ -82,10 +82,10 @@ class BlueStacksAutomation:
             print("    STRONG SCROLL DOWN (Swipe Up)")
             self.cmd("shell input swipe 500 900 500 200 300")
         else:
-            print("    SCROLL DOWN (Exact 177px)")
-            # Adjusted to match exact user request: 177px
-            # 700 - 177 = 523
-            self.cmd("shell input swipe 500 700 500 523 500")
+            print("    SCROLL DOWN (Exact 178px)")
+            # Adjusted to match exact user request: 178px
+            # 700 - 178 = 522
+            self.cmd("shell input swipe 500 700 500 522 500")
         time.sleep(1.5)
     
     def get_ocr_data(self, img=None):
@@ -234,11 +234,29 @@ class BlueStacksAutomation:
             
             print(f"\nScanning (Processed: {processed_count})...")
             
-            # 1. AUTO-COLLAPSE (Simplified - No Swipe)
+            # 1. AUTO-COLLAPSE (But check for Tandai first!)
             if any(x in ocr_text for x in ["lihat peta", "detail lengkap", "hasil ground check", "lihat lokasi gc"]):
-                print("  (!) Detected OPEN card. Tapping Header to close...")
-                self.tap(400, 300) # Standard Header Position
-                time.sleep(1.5)
+                print("  (!) Detected OPEN card.")
+                
+                # CHECK: Is "Tandai" visible? If yes, process it first!
+                if "tandai" in ocr_text:
+                    print("  (!) 'Tandai' found on open card. Processing...")
+                    if self.do_tandai_flow():
+                        processed_count += 1
+                        print(f"    ✓ TANDAI FLOW COMPLETE - Total: {processed_count}")
+                    else:
+                        print("    Tandai flow failed or already processed.")
+                    
+                    # Now collapse the card
+                    print("    Collapsing card...")
+                    self.tap(400, 300)
+                    time.sleep(1.5)
+                else:
+                    # No Tandai visible, just collapse
+                    print("    No 'Tandai' found. Collapsing...")
+                    self.tap(400, 300) # Standard Header Position
+                    time.sleep(1.5)
+                    
                 continue 
 
             # 2. CHECK "MUAT LEBIH BANYAK"
