@@ -82,10 +82,10 @@ class BlueStacksAutomation:
             print("    STRONG SCROLL DOWN (Swipe Up)")
             self.cmd("shell input swipe 500 900 500 200 300")
         else:
-            print("    SCROLL DOWN (Approx 1 Card Stride ~160px)")
-            # Adjusted to match actual card stride (700 -> 540 = 160px)
-            # Based on logs: 508 - 351 = 157px
-            self.cmd("shell input swipe 500 700 500 540 500")
+            print("    SCROLL DOWN (Exact 177px)")
+            # Adjusted to match exact user request: 177px
+            # 700 - 177 = 523
+            self.cmd("shell input swipe 500 700 500 523 500")
         time.sleep(1.5)
     
     def get_ocr_data(self, img=None):
@@ -129,16 +129,28 @@ class BlueStacksAutomation:
                             break
                     if is_ignored: continue
 
-                    # Check processed status
+                    # Check processed status (AGGRESSIVE & DEBUG)
                     is_processed = False
+                    nearby_texts = [] # For debug
+                    
                     for j, txt2 in enumerate(data['text']):
                         if i == j: continue
-                        if abs(data['top'][j] - y) < 60:
-                            t = txt2.upper()
-                            if "SUDAH" in t or "GC" in t or "STATUS" in t:
-                                if data['left'][j] > x - 50: 
+                        # Widen Vertical to Y-200 to Y+100 (Cover whole card area)
+                        dy = data['top'][j] - y
+                        if -200 < dy < 100:
+                            # Horizontal check (wide)
+                            if abs(data['left'][j] - x) < 900:
+                                t = txt2.upper().strip()
+                                if t: nearby_texts.append(t)
+                                
+                                if "SUDAH" in t or "GC" in t or "STATUS" in t or "SELESAI" in t:
                                     is_processed = True
+                                    print(f"    [SKIP] Found processed keyword '{t}' near candidate Y={y}")
                                     break
+                    
+                    if not is_processed:
+                        # print(f"    [Candidate] Y={y} OK. Nearby text: {nearby_texts}") # Optional: Enable if desperate
+                        candidates.append({'x': x, 'y': y, 'dist': abs(y - 550)})
                     
                     if not is_processed:
                         candidates.append({'x': x, 'y': y, 'dist': abs(y - 550)})
@@ -205,7 +217,7 @@ class BlueStacksAutomation:
 
     def run(self, max_items=100):
         print("\n" + "="*40)
-        print("RUNNING AUTOMATION v7.1 (Smart Bottom & Auto-Collapse)")
+        print("RUNNING AUTOMATION v7.2 (Better Bottom Logic)")
         print("="*40)
         
         if not self.connect(): return
@@ -222,44 +234,57 @@ class BlueStacksAutomation:
             
             print(f"\nScanning (Processed: {processed_count})...")
             
-            # 1. AUTO-COLLAPSE: Check if a card is already open
-            if "lihat peta" in ocr_text or "detail lengkap" in ocr_text:
-                print("  (!) Detected OPEN card. Attempting to collapse first...")
-                # Find "Lihat Peta" to know where the card roughly is
-                loc = self.find_click_position("peta", img)
+            # 1. AUTO-COLLAPSE (Simplified - No Swipe)
+            if any(x in ocr_text for x in ["lihat peta", "detail lengkap", "hasil ground check", "lihat lokasi gc"]):
+                print("  (!) Detected OPEN card. Tapping Header to close...")
+                self.tap(400, 300) # Standard Header Position
+                time.sleep(1.5)
+                continue 
+
+            # 2. CHECK "MUAT LEBIH BANYAK"
+            if "muat lebih banyak" in ocr_text:
+                print("  (!) Found 'Muat Lebih Banyak'. Tapping...")
+                loc = self.find_click_position("muat lebih banyak", img)
                 if loc:
-                    # Tap huge header approx 150px above "peta"
-                    click_y = max(250, loc[1] - 150)
-                    self.tap(400, click_y)
+                    self.tap(loc[0], loc[1])
                 else:
-                    # Generic collapse tap
-                    self.tap(400, 300)
+                    self.tap(500, 900) # Guess bottom area
                 
-                time.sleep(1.0)
-                # Scroll up slightly to ensure we reset view if stuck
-                self.cmd("shell input swipe 500 400 500 600 300")
-                time.sleep(1.0)
-                continue # Re-scan
+                print("    Waiting for load...")
+                time.sleep(3.0) 
+                
+                # VALIDATION: Check if button is still there
+                check_img = self.screenshot()
+                if "muat lebih banyak" in pytesseract.image_to_string(check_img).lower():
+                    print("    (!) Click failed? 'Muat Lebih Banyak' still visible.")
+                    print("    Retrying force tap (510, 920)...")
+                    self.tap(510, 920)
+                    time.sleep(3.0)
+                    
+                    # Check again
+                    if "muat lebih banyak" in pytesseract.image_to_string(self.screenshot()).lower():
+                         print("    (!) Still visible. Skipping scroll to avoid missing items.")
+                         continue
+
+                print("    Load success. Rescanning view immediately (No scroll)...")
+                # self.swipe_up() # User requested to check candidates first
+                time.sleep(1.5)
+                continue
             
-            # 2. FIND CANDIDATES
+            # 3. FIND CANDIDATES
             candidates = self.find_target_card(img, ignored_y_ranges=current_ignored_ys)
             
             if candidates:
-                # STRATEGY SELECTION
-                if is_bottom:
-                    # If at bottom, prefer MIDDLE or BOTTOM candidate to avoid stuck top item
-                    # Sort by distance from center
-                    print("  [BOTTOM MODE] Prioritizing Center/Bottom candidates.")
-                    candidates.sort(key=lambda k: k['dist'])
-                    target = candidates[0]
-                else:
-                    # Normal mode: Top moves up, so pick top-most
-                    target = candidates[0]
+                # STRATEGY:
+                # If Bottom Mode, we prefer candidates LOWER in the list if open (to finish bottom items)
+                # But since we have checks for 'processed', just taking the first Valid one is usually ok.
+                # However, to be safe at bottom, we don't clear ignored list, so we naturally move down.
                 
+                target = candidates[0]
                 y = target['y']
                 print(f"  Selected Candidate at Y={y} (BottomMode={is_bottom})")
                 
-                # EXPAND logic ...
+                # EXPAND
                 self.tap(400, y)
                 time.sleep(2.0)
                 
@@ -283,7 +308,6 @@ class BlueStacksAutomation:
                              print("    Flow failed.")
                              self.tap(400, y)
                 else:
-                     # Retry Chevron
                      print("  Failed to expand. Try chevron...")
                      self.tap(950, y)
                      time.sleep(2.0)
@@ -294,7 +318,7 @@ class BlueStacksAutomation:
                      else:
                          print("  Could not expand.")
                 
-                # Add to ignore for this loop to force moving on if we didn't scroll enough
+                # Add to ignore for this loop
                 current_ignored_ys.append((y - 20, y + 20))
 
             else:
@@ -310,19 +334,20 @@ class BlueStacksAutomation:
             
             if new_hash == current_screen_hash:
                 print("  Screen did not change (Stuck/Bottom).")
-                if not is_bottom:
-                    is_bottom = True # Enable Bottom Mode for next loop
-                    current_ignored_ys = [] # Reset ignores to retry candidates with new strategy
-                    print("  -> LIMIT REACHED: Switching to Bottom Mode strategies.")
-                    continue
-                else:
-                     print("  -> Still stuck in Bottom Mode. END OF LIST?")
-                     break
-            else:
-                is_bottom = False # Reset if we moved successfully
-                current_ignored_ys = [] # Reset ignores for new screen
+                is_bottom = True
                 
-        print(f"\nDone. Processed {processed_count} items.")
+                # IMPORTANT: DO NOT clear current_ignored_ys here!
+                # If we are stuck, we want to skip the Y we just tried and try the NEXT one on the same screen.
+                # Only clear if we actually moved to a new screen.
+                print("  -> Bottom detected. Keeping ignore list to try next candidate.")
+                
+                # If we have exhausted all candidates on this static screen, break
+                if not candidates: 
+                    print("  -> No more candidates on this bottom screen. FINISHED.")
+                    break
+            else:
+                is_bottom = False 
+                current_ignored_ys = [] # Reset ignores logic only if we moved to new screen
 
 if __name__ == "__main__":
     BlueStacksAutomation().run()
