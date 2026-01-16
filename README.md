@@ -32,7 +32,30 @@ Sebelum menjalankan otomasi ini, pastikan sudah terinstall:
 - **Python 3.8+** 
 - **BlueStacks 5** emulator berjalan
 - **Tesseract OCR** terinstall di `C:\Program Files\Tesseract-OCR\`
-- **Aplikasi MatchaPro** sudah login dan berada di layar daftar profiling
+- **Aplikasi MatchaPro** sudah login
+
+## 📱 Persiapan MatchaPro (PENTING!)
+
+Sebelum menjalankan script, **WAJIB** setup layar MatchaPro seperti berikut:
+
+### 1. Pilih Menu Ground Check
+Buka sidebar menu → Pilih **[Ground Check] Direktori Usaha**
+
+### 2. Set Filter
+Atur filter dengan pengaturan berikut:
+
+| Filter | Nilai |
+|--------|-------|
+| **Status Usaha** | ✓ Aktif |
+| **Status GC** | Belum GC |
+| **Lat/Long** | Ada Koordinat |
+
+### 3. Posisikan Layar
+- Scroll ke **usaha pertama** yang ingin ditandai
+- Pastikan usaha tersebut **tepat di bawah nama username** (lihat gambar)
+- Jangan ada kartu yang sudah terbuka (expanded)
+
+> ⚠️ **PENTING**: Script akan mulai dari posisi layar saat ini. Jika posisi salah, script mungkin melewatkan item atau error.
 
 ## 🚀 Cara Menjalankan
 
